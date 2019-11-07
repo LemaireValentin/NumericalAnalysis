@@ -69,15 +69,17 @@ def isBands(A):
         bln = True
         for i in range(len(A)):
             for j in range(0, max(0, i-l)):
-                if abs(A[i, j].real) >= 1e-17 or abs(A[i, len(A[0])-j].real) >= 1e-17 or abs(A[i, j].imag) >= 1e-17 or abs(A[i, len(A[0])-j].imag) >= 1e-17:
+                if abs(A[i, j].real) >= 1e-17 or abs(A[i, len(A[0])-j-1].real) >= 1e-17 or abs(A[i, j].imag) >= 1e-17 or abs(A[i, len(A[0])-j-1].imag) >= 1e-17:
                     bln = False
         if bln:
             return True, l
     return False, -1
 
 
-
 def svd(A):
-    return scipy.linalg.svd(A, compute_uv=False)
+    return np.linalg.eigvals(A)
+
+def svduv(A):
+    return scipy.linalg.svd(A)
 
 

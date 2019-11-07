@@ -2,7 +2,6 @@ import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 import gmsh
-import matplotlib.pyplot as plt
 import sys
 
 from mysolve import *
@@ -11,26 +10,15 @@ DEBUG = True
 # This scripts assembles and solves a simple finite element problem
 # using exclusively the python api of Gmsh.
 
-GRAPHS = True
-entrefer_graph = True
-mur_graph = True
-maill_graph = True
-
-if (not GRAPHS):
-    entrefer_graph = mur_graph = maill_graph = False
-
-
 cm = 0.01
 
 # Homework model parameters
 ref = 1       # mesh refinement factor (1 coarse - 5 fine)
 gap = 0.2*cm  # core-plate distance, air gap, entrefer
-freq = 0     # working frequency
-vel = 0     # plate velocity
+freq = 50     # working frequency 
+vel = 100      # plate velocity
 mur = 100.    # Relative magnetic permeability of region CORE
 
-initialfreq = freq
-initialvel = vel
 
 # geometrical parameters
 L1 = 15*cm # box x-length
@@ -54,13 +42,6 @@ jomega = complex(0, 2*np.pi*freq)
 CoilSection = L4*L4
 Integration = 'Gauss2'
 
-
-def showmat(A):
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    ax.set_aspect('equal')
-    plt.imshow(abs(A) <= 1e-17, interpolation='nearest', cmap='gray')
-    plt.show()
 
 def create_geometry():
     model.add("ndt")
@@ -175,10 +156,7 @@ def errorf(*args):
         for item in args: exec("print item,")
         exec("print")
     exit(1)
-
-
-
-
+    
 def solve():
     mshNodes = np.array(model.mesh.getNodes()[0])
     numMeshNodes = len(mshNodes)
@@ -345,200 +323,34 @@ def solve():
     printf('%globalmat =', globalmat.shape, ' %globalrhs =', globalrhs.shape)
 
     A = globalmat[:numUnknowns,:numUnknowns]
-
     b = globalrhs[:numUnknowns]
-    # b = b/np.linalg.norm(b)
-    #u, sigmavec, v = svduv(A)
-    #b = np.matrix(v[np.where(sigmavec == np.min(sigmavec))].T)
-    # print(np.linalg.norm(b))
-    # u = u.T
-
-
     success, sol = mysolve(A, b)
     if not success:
         errorf('Solver not implemented yet')
-    sol = np.append(sol, np.zeros(numMeshNodes-numUnknowns))
-    #print(np.linalg.norm(sol) - np.min(sigmavec))
-    #sol = np.append(u[np.where(sigmavec == np.max(sigmavec))], np.zeros(numMeshNodes - numUnknowns))
+    sol = np.append(sol,np.zeros(numMeshNodes-numUnknowns))
     printf('%sol =', sol.shape)
-    #print(np.linalg.norm(sol))
-
-    if (not GRAPHS):
-        print("coucou")
-        print("Is Real : {}".format(isReal(A)))
-        print("Is Complex : {}".format(isComplex(A)))
-        print("Is Symetrical : {}".format(isSym(A)))
-        print("Is Hermitian : {}".format(isHermite(A)))
-        print("Is Sparse : {}".format(isSparse(A)))
-        print("Has bands : {}".format(isBands(A)))
-        print("Is Def Pos : {}".format(isDefPos(A)))
-        print("Is unitary : {}".format(isUnit(A)))
-        print("Is Inv : {}".format(isInversible(A)))
-
-    else:
-        svdres = svd(A)
-        sigmaN.append(np.linalg.norm(A, 2))
-        sigma1.append(1/np.linalg.norm(np.linalg.inv(A), 2))
-        conditionnements.append(max(svdres) / min(svdres))
-        taille_maillage.append(len(A))
-
+    
     # Export solution
     sview = gmsh.view.add("solution")
     gmsh.view.addModelData(sview,0,"","NodeData",unknown2node[1:],sol[:,None])
     # gmsh.view.write(sview,"a.pos")
     printf('Flux (computed) =', np.max(sol)-np.min(sol))
-
     return
 
+    
 model = gmsh.model
 factory = model.geo
 gmsh.initialize(sys.argv)
 
-# gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", ref)
+#gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", ref)
 gmsh.option.setNumber("General.Terminal", 1)
 gmsh.option.setNumber("View[0].IntervalsType", 3)
 gmsh.option.setNumber("View[0].NbIso", 20)
 
-if entrefer_graph:
-
-    sigma1 = []
-    sigmaN = []
-    conditionnements = []
-    taille_maillage = []
-
-    vec = np.linspace(1e-2*cm, 0.5*cm, 200)
-    for largeur in vec:
-        gap = largeur
-
-        create_geometry()
-        model.mesh.generate(2)
-        solve()
-
-    gap = 0.2*cm
-
-    plt.figure(figsize=(5,6))
-
-    plt.subplot(3,1,1)
-    plt.plot(vec/cm, sigma1)
-    plt.title('Valeur singulière σ_1')
-    plt.xlabel('Largeur de l\'entrefer [cm]')
-    plt.ylabel('σ_1 [/]')
-    plt.grid()
-
-
-    plt.subplot(3,1,2)
-    plt.plot(vec/cm, sigmaN)
-    plt.title('Valeur singulière σ_n')
-    plt.xlabel('Largeur de l\'entrefer [cm]')
-    plt.ylabel('σ_n [/]')
-    plt.grid()
-
-
-    plt.subplot(3,1,3)
-    plt.plot(vec/cm, conditionnements)
-    plt.title('Nombre de conditionnement κ')
-    plt.xlabel('Largeur de l\'entrefer [cm]')
-    plt.ylabel('κ [/]')
-    plt.grid()
-
-
-    plt.show()
-
-if mur_graph:
-
-    sigma1 = []
-    sigmaN = []
-    conditionnements = []
-    taille_maillage = []
-
-    vec = np.linspace(1, 300, 200)
-    for mu in vec:
-        mur = mu
-
-        create_geometry()
-        model.mesh.generate(2)
-        solve()
-
-    mur = 100
-
-    plt.figure(figsize=(5,6))
-
-    plt.subplot(3,1,1)
-    plt.plot(vec, sigma1)
-    plt.title('Valeur singulière σ_1')
-    plt.xlabel('μ_r [/]')
-    plt.ylabel('σ_1 [/]')
-    plt.grid()
-
-
-    plt.subplot(3,1,2)
-    plt.plot(vec, sigmaN)
-    plt.title('Valeur singulière σ_n')
-    plt.xlabel('μ_r [/]')
-    plt.ylabel('σ_n [/]')
-    plt.grid()
-
-
-    plt.subplot(3, 1, 3)
-    plt.plot(vec, conditionnements)
-    plt.title('Nombre de conditionnement κ')
-    plt.xlabel('μ_r [/]')
-    plt.ylabel('κ [/]')
-    plt.grid()
-
-    plt.show()
-
-
-if maill_graph:
-    sigma1 = []
-    sigmaN = []
-    conditionnements = []
-    taille_maillage = []
-
-
-    vec = np.linspace(1, 4, 30)
-    for maillage in vec:
-        ref = maillage
-
-        create_geometry()
-        model.mesh.generate(2)
-        solve()
-
-    ref = 1
-
-    plt.figure(figsize=(5,6))
-    plt.title('Etude des σ_1, σ_n et κ de la matrice A en fonction de la précision du maillage')
-
-    plt.subplot(3,1,1)
-    plt.plot(taille_maillage, sigma1)
-    plt.title('Valeur singulière σ_1')
-    plt.xlabel('Nombre de noeuds [/]')
-    plt.ylabel('σ_1 [/]')
-    plt.grid()
-
-    plt.subplot(3,1,2)
-    plt.plot(taille_maillage, sigmaN)
-    plt.title('Valeur singulière σ_n')
-    plt.xlabel('Nombre de noeuds [/]')
-    plt.ylabel('σ_n [/]')
-    plt.ylim((4e6, 6.5e6))
-    plt.grid()
-
-
-    plt.subplot(3,1,3)
-    plt.plot(taille_maillage, conditionnements)
-    plt.title('Nombre de conditionnement κ')
-    plt.xlabel('Nombre de noeuds [/]')
-    plt.ylabel('κ [/]')
-    plt.grid()
-
-
-    plt.show()
-freq = initialfreq
-vel = initialvel
 create_geometry()
 model.mesh.generate(2)
 solve()
+
 gmsh.write('ndt.msh')
 
 gmsh.fltk.run()
@@ -560,5 +372,3 @@ gmsh.fltk.run()
 ## array([[[1, 2, 3],
 ##         [1, 2, 3],
 ##         [1, 2, 3]]])
-
-
