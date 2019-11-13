@@ -15,8 +15,8 @@ cm = 0.01
 # Homework model parameters
 ref = 1       # mesh refinement factor (1 coarse - 5 fine)
 gap = 0.2*cm  # core-plate distance, air gap, entrefer
-freq = 50     # working frequency 
-vel = 100      # plate velocity
+freq = 0     # working frequency
+vel = 0      # plate velocity
 mur = 100.    # Relative magnetic permeability of region CORE
 
 
@@ -43,7 +43,7 @@ CoilSection = L4*L4
 Integration = 'Gauss2'
 
 
-def create_geometry():
+def create_geometry(gap, ref):
     model.add("ndt")
     lc1=L1/10/ref;
     lc2=L4/8/ref;
@@ -51,17 +51,17 @@ def create_geometry():
     L0X = 2*cm;
     L0Y = L2 + gap ;
 
-    factory.addPoint(  0      ,  0, 0, lc1, 1)
-    factory.addPoint( L1      ,  0, 0, lc1, 2)
-    factory.addPoint(  0      , L2, 0, lc1, 3)
-    factory.addPoint( L0X     , L2, 0, lc2, 4)
-    factory.addPoint( L0X+1*L4, L2, 0, lc2, 5)
-    factory.addPoint( L0X+2*L4, L2, 0, lc2, 6)
-    factory.addPoint( L0X+3*L4, L2, 0, lc2, 7)
-    factory.addPoint( L0X+4*L4, L2, 0, lc2, 8)
-    factory.addPoint( L1      , L2, 0, lc1, 9)
-    factory.addPoint(  0      , L3, 0, lc1,10)
-    factory.addPoint( L1      , L3, 0, lc1,11)
+    factory.addPoint(  0      ,  0, 0, lc1,  1)
+    factory.addPoint( L1      ,  0, 0, lc1,  2)
+    factory.addPoint(  0      , L2, 0, lc1,  3)
+    factory.addPoint( L0X     , L2, 0, lc2,  4)
+    factory.addPoint( L0X+1*L4, L2, 0, lc2,  5)
+    factory.addPoint( L0X+2*L4, L2, 0, lc2,  6)
+    factory.addPoint( L0X+3*L4, L2, 0, lc2,  7)
+    factory.addPoint( L0X+4*L4, L2, 0, lc2,  8)
+    factory.addPoint( L1      , L2, 0, lc1,  9)
+    factory.addPoint(  0      , L3, 0, lc1, 10)
+    factory.addPoint( L1      , L3, 0, lc1, 11)
     
     factory.addLine(1,2, 1)
     factory.addLine(2,9, 2)
@@ -157,7 +157,8 @@ def errorf(*args):
         exec("print")
     exit(1)
     
-def solve():
+def solve(freq, vel, mur):
+    jomega = complex(0, 2 * np.pi * freq)
     mshNodes = np.array(model.mesh.getNodes()[0])
     numMeshNodes = len(mshNodes)
     printf('numMeshNodes =', numMeshNodes)
@@ -347,9 +348,9 @@ gmsh.option.setNumber("General.Terminal", 1)
 gmsh.option.setNumber("View[0].IntervalsType", 3)
 gmsh.option.setNumber("View[0].NbIso", 20)
 
-create_geometry()
+create_geometry(gap, ref)
 model.mesh.generate(2)
-solve()
+solve(freq, vel, mur)
 
 gmsh.write('ndt.msh')
 

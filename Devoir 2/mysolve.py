@@ -7,16 +7,19 @@ import numpy as np
 # Implement your solver in this file and then run:
 # python ndt.py
 
-SolverType = 'scipy'
+SolverType = 'LU'
 
 
 def mysolve(A, b):
     if SolverType == 'scipy':
         return True, scipy.sparse.linalg.spsolve(A, b)
     elif SolverType == 'QR':
-        return False, 0
+        return True, QRsolve(A, b)
     elif SolverType == 'LU':
-        return False, 0
+        LUres, P = ILU0_slow(A)
+        #if not LUres:
+        #    return False, 0
+        return True, LUsolve(LUres, b, P)
     elif SolverType == 'GMRES':
         return False, 0
     else:
@@ -24,7 +27,7 @@ def mysolve(A, b):
 
 
 def LU_slow(A):
-    tol = 1e-20
+    tol = 1e-15
     N = len(A)
     P = np.arange(N + 1)
     P[N] = 0
@@ -56,7 +59,7 @@ def LU(A):
             P[i], P[imax] = P[imax], P[i]
             P[N] += 1
 
-        A[P[i+1:N], i] /= A[P[i], i]
+        A[P[i+1:N], i:i+1] /= A[P[i], i]
         A[P[i+1:N], i+1:] -= np.outer(A[P[i+1:N], i], A[P[i], i+1:])
     return A, P
 
@@ -65,10 +68,10 @@ def LUsolve(A, b, P):
     N = len(A)
     y = np.zeros(N)
     for i in range(N):
-        y[i] = (b[P[i]] - np.dot(A[P[i], :i], y[:i]))
+        y[i:i+1] = (b[P[i]] - np.dot(A[P[i], :i+1], y[:i+1]))
     x = np.zeros(N)
     for i in range(N-1, -1, -1):
-        x[i] = (y[i] - np.dot(A[P[i], i:], x[i:])) / A[P[i], i]
+        x[i:i+1] = (y[i] - np.dot(A[P[i], i:], x[i:])) / A[P[i], i]
     return x
 
 
@@ -85,12 +88,15 @@ def ILU0_slow(A):
             P[i], P[imax] = P[imax], P[i]
             A[i], A[imax] = A[imax].copy(), A[i].copy()
             P[N] += 1
+        count = 0
         for j in range(i+1, N):
-            if A[j, i] != 0:
+            if np.abs(A[j, i]) >= tol:
                 A[j, i] /= A[i, i]
                 for k in range(i+1, N):
-                    if A[i, k] != 0:
+                    if np.abs(A[j, k]) >= tol:
                         A[j, k] -= A[j, i] * A[i, k]
+                        count +=1
+        print(count)
     return A, P
 
 
@@ -101,19 +107,19 @@ def ILU0(A):
     P[N] = 0
     for i in range(N):
         imax = i + np.argmax(np.abs(A[P[i:N], i]))
-        if abs(A[P[imax], i]) < tol:
+        if np.abs(A[P[imax], i]) < tol:
             return None, None
         if imax != i:
             P[i], P[imax] = P[imax], P[i]
             P[N] += 1
-        idx1 = np.nonzero(A[P[i+1:N], i])[0]
-        A[P[i + 1 + idx1], i] /= A[P[i], i]
-        idx2 = np.nonzero(np.abs(A[P[i], i + 1:]) >= tol)[0]
-        A[np.ix_(P[i + 1 + idx1], i + 1 + idx2)] -= np.outer(A[P[i + 1 + idx1], i], A[P[i], i + 1 + idx2])
+        idx1 = np.nonzero(np.abs(A[P[i+1:N], i]) >= tol)[0]
+        A[P[i + 1 + idx1], i:i+1] /= A[P[i], i]
+        idx2 = np.nonzero(np.abs(A[P[i + 1 + idx1], i + 1:]) >= tol)
+        A[P[i+1+idx2[0]], i+1+idx[1]] -= np.outer(A[P[i+1:N], i], A[P[i], i+1:])[idx2]
     return A, P
 
 
-def QR(A):
+def QRfactorize(A):
     M, N = np.shape(A)
     Q = np.zeros((M, N))
     R = np.zeros((N, N))
@@ -139,7 +145,7 @@ def QR_slow(A):
     return Q, R
 
 def QRsolve(A, b):
-    Q, R = QR(A)
+    Q, R = QRfactorize(A)
     M, N = np.shape(Q)
     y1 = np.einsum('ji, j->i', A, b)
     y2 = np.zeros(N)
@@ -160,12 +166,11 @@ A_2 = np.copy(A)
 A3 = np.array([[1, 0], [2, 1]], dtype=float)
 
 A_qr = np.array([[-1, -1, 1], [1, 3, 3], [-1, -1, 5], [1, 3, 7]], dtype=float)
-# Q, R = QR(A3)
-# print(Q, R)
-print(QRsolve(A3, [3, 4]))
+# print(QRsolve(A3, [3, 4]))
 
 # print(LU(A))
 # print(scipy.linalg.lu(A)[1], scipy.linalg.lu(A)[2])
-# print(ILU0(A))
+# LU, P = LU(A3)
+# print(LUsolve(A3, [3, 4], P))
 # print(ILU0_slow(A_2))
 
