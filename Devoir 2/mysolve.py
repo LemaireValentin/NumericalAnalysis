@@ -8,7 +8,7 @@ import time
 # Implement your solver in this file and then run:
 # python ndt.py
 
-SolverType = 'QR'
+SolverType = 'LU'
 
 def mysolve(A, b):
     if SolverType == 'scipy':
@@ -189,33 +189,33 @@ def QR_slow(A):
 """
 def QR_columns(A):
     M, N = np.shape(A)
-    # Q = np.zeros((M, N), dtype=complex)
+    Q = np.zeros((M, N), dtype=complex)
     R = np.zeros((N, N), dtype=complex)
     for i in range(N):
         R[i, i] = np.linalg.norm(A[:, i], ord=2)
-        A[:, i] = A[:, i] / R[i, i]
-        R[i, i+1:] = np.dot(A[:, i].conjugate(), A[:, i+1:])
-        A[:, i+1:] -= np.outer(A[:, i], R[i, i+1:])
-    return A, R
+        Q[:, i] = A[:, i] / R[i, i]
+        R[i, i+1:] = np.dot(Q[:, i].conjugate(), A[:, i+1:])
+        A[:, i+1:] -= np.outer(Q[:, i], R[i, i+1:])
+    return Q, R
 
 
 """
-    This function implements the same algorithm as the two above functions but transposes A at 
+    This function implements the same algorithm as the two functions above but transposes A at 
     the beginning and Q at the end. 
     This way, we can use the fact that matrices are stored by rows (and not by columns) and the fact 
     that operations on rows are faster than operations on columns
+    It also uses A to store Q to save memory and to avoid using new matrices
 """
 def QR(A):
     A = np.array(A, dtype=complex).T
     M, N = np.shape(A)
-    Q = np.zeros((M, N), dtype=complex)
     R = np.zeros((N, N), dtype=complex)
     for i in range(N):
         R[i, i] = np.linalg.norm(A[i], ord=2)
-        Q[i] = A[i] / R[i, i]
-        R[i, i+1:] = np.dot(A[i+1:, :], Q[i].conjugate())
-        A[i+1:, :] -= np.outer(R[i, i+1:], Q[i])
-    return Q.T, R
+        A[i] = A[i] / R[i, i]
+        R[i, i+1:] = np.dot(A[i+1:, :], A[i].conjugate())
+        A[i+1:, :] -= np.outer(R[i, i+1:], A[i])
+    return A.T, R
 
 
 """
@@ -224,7 +224,7 @@ def QR(A):
     knowing that R is an upper triangular matrix.
 """
 def QRsolve(A, b):
-    Q, R = QR_columns(A)
+    Q, R = QR(A)
     M, N = np.shape(Q)
     y = np.dot(Q.T.conjugate(), b)
     x = np.zeros(N, dtype=complex)
