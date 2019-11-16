@@ -5,6 +5,7 @@ import gmsh
 import sys
 
 from mysolve import *
+
 DEBUG = True
 
 # This scripts assembles and solves a simple finite element problem
@@ -15,8 +16,8 @@ cm = 0.01
 # Homework model parameters
 ref = 1       # mesh refinement factor (1 coarse - 5 fine)
 gap = 0.2*cm  # core-plate distance, air gap, entrefer
-freq = 0     # working frequency
-vel = 0      # plate velocity
+freq = 50     # working frequency
+vel = 100      # plate velocity
 mur = 100.    # Relative magnetic permeability of region CORE
 
 
@@ -336,24 +337,42 @@ def solve(freq, vel, mur):
     gmsh.view.addModelData(sview,0,"","NodeData",unknown2node[1:],sol[:,None])
     # gmsh.view.write(sview,"a.pos")
     printf('Flux (computed) =', np.max(sol)-np.min(sol))
-    return
 
-    
+    return A, b, numMeshNodes, sol
+
+
+def ndtfun(gap, ref, freq, vel, mur):
+    model = gmsh.model
+    factory = model.geo
+    gmsh.initialize(sys.argv)
+
+    # gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", ref)
+    gmsh.option.setNumber("General.Terminal", 1)
+    gmsh.option.setNumber("View[0].IntervalsType", 3)
+    gmsh.option.setNumber("View[0].NbIso", 20)
+
+    create_geometry(gap, ref)
+    model.mesh.generate(2)
+    A, b, num_nodes, sol = solve(freq, vel, mur)
+
+    return A, b, num_nodes, sol, np.linalg.cond(A)
+
+#
 model = gmsh.model
 factory = model.geo
 gmsh.initialize(sys.argv)
-
+#
 #gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", ref)
 gmsh.option.setNumber("General.Terminal", 1)
 gmsh.option.setNumber("View[0].IntervalsType", 3)
 gmsh.option.setNumber("View[0].NbIso", 20)
-
+#
 create_geometry(gap, ref)
 model.mesh.generate(2)
 solve(freq, vel, mur)
-
+#
 gmsh.write('ndt.msh')
-
+#
 gmsh.fltk.run()
 
 
