@@ -255,22 +255,9 @@ def CSRformat(A):
     return sA, iA, jA
 
 
-def bands_csr(iA, jA):
-    N = len(iA) - 1
-    max_band_l = 0
-    max_band_r = 0
-    for i in range(N):
-        band_l = i - jA[iA[i]]
-        band_r = jA[iA[i+1]-1] - i
-        max_band_l = max(band_l, max_band_l)
-        max_band_r = max(band_r, max_band_r)
-    return max_band_l, max_band_r
-
-
-
 def LUcsr(sA, iA, jA):
     N = len(iA) - 1
-    band_l, band_r = bands_csr(iA, jA)
+    band_l, band_r = np.max(np.arange(N) - jA[iA[:N]]), np.max(jA[iA[1:]-1] - np.arange(N))
     num_elems = int((band_l + band_r + 1) * N - band_l * (band_l + 1)/2 - band_r * (band_r + 1)/2)
     sLU = np.zeros(num_elems, dtype=complex)
     iLU = np.zeros(len(iA), dtype=int)
@@ -307,35 +294,35 @@ def LUcsr(sA, iA, jA):
 
 def LUcsr_opt(sA, iA, jA):
     N = len(iA) - 1
-    band_l, band_r = bands_csr(iA, jA)
+    band_l, band_r = np.max(np.arange(N) - jA[iA[:N]]), np.max(jA[iA[1:]-1] - np.arange(N))
     num_elems = int((band_l + band_r + 1) * N - band_l * (band_l + 1)/2 - band_r * (band_r + 1)/2)
     sLU = np.zeros(num_elems, dtype=complex)
-    iLU = np.zeros(len(iA), dtype=int)
+    iLU = np.zeros(N+1, dtype=int)
     jLU = np.zeros(num_elems, dtype=int)
-    for i in range(1, len(iLU)):
+    for i in range(1, N+1):
         iLU[i] = iLU[i-1] + band_l + band_r + 1 + min(i - 1 - band_l, 0) + min(N - i - band_l, 0)
         jLU[iLU[i-1]:iLU[i]] = np.arange(i - band_l - min(i - 1 - band_l, 0) - 1, i + band_r + min(N - i - band_r, 0))
-    for i in range(N):
-        idx = jA[iA[i]:iA[i+1]]
-        sLU[iLU[i]:iLU[i+1]][idx - jLU[iLU[i]]] = sA[iA[i]:iA[i+1]]
+        idx = jA[iA[i-1]:iA[i]]
+        sLU[iLU[i-1]:iLU[i]][idx - jLU[iLU[i-1]]] = sA[iA[i-1]:iA[i]]
 
     for i in range(N):
         a_ii = sLU[iLU[i] + np.where(jLU[iLU[i]:iLU[i+1]] == i)[0]]
+        if a_ii == 0:
+            return None, None, None
         j_max = i + band_l + min(N - i - band_l, 1)
         k_max = i + band_r + 1 + min(N - i - band_r, 0)
         sLU[iLU[i + 1] + np.where(jLU[iLU[i+1]:iLU[j_max]] == i)[0]] /= a_ii
         sLU[iLU[i+1] + np.where(np.logical_and(i + 1 <= jLU[iLU[i+1]:iLU[j_max]], jLU[iLU[i+1]:iLU[j_max]] < k_max))[0]] -= np.outer(sLU[iLU[i + 1] + np.where(jLU[iLU[i+1]:iLU[j_max]] == i)[0]], sLU[iLU[i] + np.where(np.logical_and(i + 1 <= jLU[iLU[i]:iLU[i + 1]], jLU[iLU[i]:iLU[i + 1]] < k_max))[0]]).flatten()
 
-    nz_count = np.count_nonzero(sLU)
-    new_sLU = np.zeros(nz_count, dtype=complex)
-    new_jLU = np.zeros(nz_count, dtype=int)
-    new_iLU = iLU.copy()
+    nz_idx = np.nonzero(sLU)
+    sLU = sLU[nz_idx]
+    jLU = jLU[nz_idx]
 
     for i in range(1, N+1):
-        nz_index = np.nonzero(sLU[iLU[i-1]:iLU[i]])[0]
-        new_iLU[i] = new_iLU[i-1] + len(nz_index)
-        new_sLU[new_iLU[i-1]:new_iLU[i]] = sLU[iLU[i-1]:iLU[i]][nz_index]
-        new_jLU[new_iLU[i-1]:new_iLU[i]] = jLU[iLU[i-1]:iLU[i]][nz_index]
+        iLU[i] = np.sum(nz_idx < iLU[i])
 
-    return new_sLU.real, new_iLU, new_jLU
+    return sLU, iLU, jLU
 
+
+def RMCK(iA, jA):
+    pass
