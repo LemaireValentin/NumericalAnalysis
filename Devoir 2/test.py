@@ -36,7 +36,7 @@ def test_complexity_maillage(start, target, step, num):
     plt.plot(num_nodes, times_LU, label='LUsolve')
 
     vec = np.linspace(num_nodes[0], num_nodes[-1], 200)
-    # plt.plot(vec, np.polyval(np.polyfit(num_nodes, times_LU, 3), vec), label='Polyfit LU degré 3')
+    plt.plot(vec, np.polyval(np.polyfit(num_nodes, times_LU, 3), vec), label='Polyfit LU degré 3')
     # plt.plot(vec, np.polyval(np.polyfit(num_nodes, times_LU, 2), vec), label='Polyfit LU degré 2')
     # plt.plot(vec, np.polyval(np.polyfit(num_nodes, times_QR, 3), vec), label='Polyfit QR degré 3')
     # plt.plot(vec, np.polyval(np.polyfit(num_nodes, times_QR, 2), vec), label='Polyfit QR degré 2')
@@ -189,6 +189,7 @@ def cond():
     print(order)
     print(cond)
     print(condA)
+
 
 # cond()
 # complexity_test_200_400(10)
