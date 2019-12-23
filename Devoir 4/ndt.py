@@ -10,7 +10,7 @@ from mysolve import *
 DEBUG = True
 
 
-def ndtfun(gap, ref, freq, vel, mur, run, copy, SolverType):
+def ndtfun(gap, ref, freq, vel, mur, run, copy, SolverType, rtol, prec):
     # This scripts assembles and solves a simple finite element problem
     # using exclusively the python api of Gmsh.
 
@@ -161,7 +161,7 @@ def ndtfun(gap, ref, freq, vel, mur, run, copy, SolverType):
             exec("print")
         exit(1)
 
-    def solve(freq, vel, mur, SolverType):
+    def solve(freq, vel, mur, SolverType, rtol, prec):
         jomega = complex(0, 2 * np.pi * freq)
         mshNodes = np.array(model.mesh.getNodes()[0])
         numMeshNodes = len(mshNodes)
@@ -331,10 +331,12 @@ def ndtfun(gap, ref, freq, vel, mur, run, copy, SolverType):
         b = globalrhs[:numUnknowns]
         if copy:
             A2 = A.copy()
+            b2 = b.copy()
         else:
             A2 = A
+            b2 = b
         tic = time.time()
-        success, x = mysolve(A, b)
+        success, x = mysolve(A, b) # , SolverType, rtol, prec)
         toc = time.time()
         print(toc-tic)
         if not success:
@@ -348,7 +350,7 @@ def ndtfun(gap, ref, freq, vel, mur, run, copy, SolverType):
         # gmsh.view.write(sview,"a.pos")
         printf('Flux (computed) =', np.max(sol)-np.min(sol))
 
-        return A2, b, numMeshNodes, x, toc-tic
+        return A2, b2, numMeshNodes, x, toc-tic
 
     model = gmsh.model
     factory = model.geo
@@ -361,9 +363,9 @@ def ndtfun(gap, ref, freq, vel, mur, run, copy, SolverType):
 
     create_geometry(gap, ref)
     model.mesh.generate(2)
-    A2, b, num_nodes, sol, tictoc = solve(freq, vel, mur, SolverType)
+    A2, b, num_nodes, sol, tictoc = solve(freq, vel, mur, SolverType, rtol, prec)
 
-    gmsh.write('ndt.msh')
+    # gmsh.write('ndt.msh')
     if run:
         gmsh.fltk.run()
 
